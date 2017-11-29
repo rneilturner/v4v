@@ -95,8 +95,7 @@
 
 #define DEBUG_ORANGE(a) do { printk(KERN_ERR  "%s %s %s:%d cpu%d pid %d\n",a,__PRETTY_FUNCTION__,"v4v.c",__LINE__,raw_smp_processor_id(),current->pid); } while (1==0)
 
-#undef V4V_DEBUG
-#undef V4V_DEBUG_LOCKS
+#define V4V_DEBUG 1
 
 #ifdef V4V_DEBUG
 
