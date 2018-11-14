@@ -2886,8 +2886,6 @@ allocate_fd_with_private (void *private)
   int fd;
   struct file *f;
 #if ( LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38) )
-  struct qstr name = { .name = "" };
-  struct path path;
   struct inode *ind;
 #endif
 
@@ -2900,11 +2898,6 @@ allocate_fd_with_private (void *private)
     return fd;
 
 #if ( LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38) )
-  path.dentry = d_alloc_pseudo(v4v_mnt->mnt_sb, &name);
-  if (unlikely(!path.dentry)) {
-      put_unused_fd(fd);
-      return -ENOMEM;
-  }
   ind = new_inode(v4v_mnt->mnt_sb);
   ind->i_ino = get_next_ino();
   ind->i_fop = v4v_mnt->mnt_root->d_inode->i_fop;
@@ -2912,30 +2905,26 @@ allocate_fd_with_private (void *private)
   ind->i_mode =  v4v_mnt->mnt_root->d_inode->i_mode;
   ind->i_uid = current_fsuid();
   ind->i_gid = current_fsgid();
-  d_instantiate(path.dentry, ind);
-
-  path.mnt = mntget(v4v_mnt);
 
   DEBUG_APPLE;
   f =
-    alloc_file (&path,
+    alloc_file_pseudo (ind, v4v_mnt, "", O_RDWR, &v4v_fops_stream);
 #else
   f =
-    alloc_file (v4v_mnt,
+    alloc_file (v4v_mnt, dget (v4v_mnt->mnt_root), FMODE_READ | FMODE_WRITE, &v4v_fops_stream);
 #endif
-#if ( LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,32) ) /* alloc_file */
-                dget (v4v_mnt->mnt_root),
-#endif
-                FMODE_READ | FMODE_WRITE, &v4v_fops_stream);
-  if (!f)
+
+if (!f)
     {
       //FIXME putback fd?
       return -ENFILE;
     }
 
+#if ( LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,32) ) /* alloc_file */
+  f->f_flags = O_RDWR;
+#endif
 
   f->private_data = private;
-  f->f_flags = O_RDWR;
 
   fd_install (fd, f);
 
